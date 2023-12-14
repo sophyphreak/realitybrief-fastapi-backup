@@ -2,3 +2,4 @@ fastapi
 pymongo
 motor
 pydantic
+uvicorn
