@@ -1,0 +1,4 @@
+fastapi
+pymongo
+motor
+pydantic
