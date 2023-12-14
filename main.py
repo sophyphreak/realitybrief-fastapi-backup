@@ -11,7 +11,8 @@ from bson.objectid import ObjectId
 
 app = FastAPI()
 # DATABASE_URL = "mongodb+srv://leoproechel:xvxEke4g@cluster0.uzkj2bx.mongodb.net/?retryWrites=true&w=majority&appurl=AtlasApp"
-DATABASE_URL = "mongodb+srv://leoproechel:xvxEke4g@cluster0.uzkj2bx.mongodb.net/"
+DATABASE_URL = "mongodb+srv://leoproechel:xvxEke4g@cluster0.uzkj2bx.mongodb.net/?ssl=true&tls=true"
+# mongodb+srv://username:password@cluster-url/database?ssl=true&tls=true
 # client = AsyncIOMotorClient(DATABASE_URL)
 # database = client.Cluster0
 # articles = database["items-t1"]
