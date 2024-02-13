@@ -60,6 +60,9 @@ class Article(BaseModel):
     category_ids: list[str]
     countries: list[str]
     scores: str
+    childOf: Union[str, None] = None
+    combinees: Union[list[str], None] = None
+    articleType: Union[str, None] = None
 
 @app.post("/articles/")
 async def create_item(item: Article):
@@ -88,7 +91,7 @@ async def get_articles(dateStart: Optional[float] = Query(None), dateEnd: Option
 
     try:
         items_cursor = articles.find(query).sort("published", -1)  # Sort by 'published' in descending order
-        items = await items_cursor.to_list(length=100)  # Adjust length as needed
+        items = await items_cursor.to_list(length=1000)  # Adjust length as needed
 
         # Convert MongoDB's ObjectId to string for each item
         for item in items:
@@ -109,7 +112,7 @@ async def read_item(item_id: str):
     item = await articles.find_one({"_id": ObjectId(item_id)})
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
-    return {"id": str(item["_id"]), "url": item["url"]}
+    return {"id": str(item["_id"]), "url": item["url"], "combinees": item["combinees"]}
 
 # @app.get("/articles/{item_id}")
 # async def read_item(item_id: str, dateStart: date = Query(None), dateEnd: date = Query(None)):
@@ -182,15 +185,17 @@ async def get_items_by_category(category: str,
         print(f"country_list: {country_list}")
         query["countries"] = {"$in": country_list}
 
+    print("hilkjq")
     items_cursor = articles.find(query).sort("published", -1)
-
-    items = await items_cursor.to_list(length=100)  # Adjust length as needed
-
+    print("ljh8ns")
+    items = await items_cursor.to_list(length=1000)  # Adjust length as needed
+    print("lkhjkfuhs")
     if not items:
         raise HTTPException(status_code=404, detail="Items not found")
-
+    print("hlhsd")
     # Convert MongoDB's ObjectId to string for each item
     for item in items:
+        print("lkjhsd", item["url"])
         item["_id"] = str(item["_id"])
 
     return items
