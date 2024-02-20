@@ -25,8 +25,8 @@ async def startup_db_client():
     global client, database, articles, categories
     client = AsyncIOMotorClient(DATABASE_URL)
     database = client.Cluster0
-    articles = database["items-t1"]
-    categories = database["categories-t4"]
+    articles = database["items-t2"]
+    categories = database["categories-t5"]
     await articles.create_index("url", unique=True)
     await categories.create_index("name", unique=True)
 
@@ -63,6 +63,8 @@ class Article(BaseModel):
     childOf: Union[str, None] = None
     combinees: Union[list[str], None] = None
     articleType: Union[str, None] = None
+    prompts: Union[list[str], None] = None
+    latLong: Union[list[float], None] = None
 
 @app.post("/articles/")
 async def create_item(item: Article):
