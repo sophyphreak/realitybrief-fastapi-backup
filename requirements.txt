@@ -3,3 +3,5 @@ pymongo
 motor
 pydantic
 uvicorn
+fastapi-users[beanie]
+beanie

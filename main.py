@@ -198,7 +198,13 @@ async def get_items_by_category(category: str,
     # Convert MongoDB's ObjectId to string for each item
     for item in items:
         print("lkjhsd", item["url"])
+        if item["latLong"][0] == None:
+            item["latLong"] = [0, 0]
+        print("==", item["latLong"])
+        print("-----")
         item["_id"] = str(item["_id"])
+
+    # print(items)
 
     return items
 
