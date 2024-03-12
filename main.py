@@ -65,6 +65,10 @@ class Article(BaseModel):
     articleType: Union[str, None] = None
     prompts: Union[list[str], None] = None
     latLong: Union[list[float], None] = None
+    deaths: Union[int, None] = None
+    injured: Union[int, None] = None
+    missing: Union[int, None] = None
+    displaced: Union[int, None] = None
 
 @app.post("/articles/")
 async def create_item(item: Article):
@@ -187,7 +191,7 @@ async def get_items_by_category(category: str,
         print(f"country_list: {country_list}")
         query["countries"] = {"$in": country_list}
 
-    print("hilkjq")
+    print("12345")
     items_cursor = articles.find(query).sort("published", -1)
     print("ljh8ns")
     items = await items_cursor.to_list(length=1000)  # Adjust length as needed
@@ -197,12 +201,19 @@ async def get_items_by_category(category: str,
     print("hlhsd")
     # Convert MongoDB's ObjectId to string for each item
     for item in items:
-        print("lkjhsd", item["url"])
-        if item["latLong"][0] == None:
-            item["latLong"] = [0, 0]
-        print("==", item["latLong"])
-        print("-----")
-        item["_id"] = str(item["_id"])
+        # if combinees isn't a list
+        if not isinstance(item["combinees"], list):
+            item["combinees"] = []
+        try:
+            print("lkjhsd", item["url"])
+            if item["latLong"][0] == None:
+                item["latLong"] = [0, 0]
+            print("==", item["latLong"])
+            print("-----")
+            item["_id"] = str(item["_id"])
+            print("item success", item)
+        except:
+            print("item failure", item)
 
     # print(items)
 
