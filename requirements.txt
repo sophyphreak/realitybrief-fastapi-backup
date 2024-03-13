@@ -5,3 +5,4 @@ pydantic
 uvicorn
 fastapi-users[beanie]
 beanie
+httpx_oauth
