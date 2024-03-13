@@ -51,6 +51,7 @@ async def startup_db_client():
 # Add CORS middleware
 origins = [
   "*",
+  "https://remarkable-pudding-6192c0.netlify.app/"
 #   "http://localhost:5173",  # Svelte's default development server address
 ]
 
@@ -74,7 +75,7 @@ app.include_router(
     fastapi_users.get_oauth_router(
         google_oauth_client,
         auth_backend,
-        "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",
+        "SECRET",
         associate_by_email=True,
         is_verified_by_default=True,
     ),
