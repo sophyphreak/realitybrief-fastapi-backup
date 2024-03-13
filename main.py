@@ -8,6 +8,18 @@ from pydantic import BaseModel, Field, validator
 from bson import ObjectId
 from datetime import date
 from bson.objectid import ObjectId
+from beanie import Document, init_beanie
+from fastapi_users.db import BaseOAuthAccount
+# from fastapi_users.db import BeanieBaseUser, BeanieUserDatabase
+
+from db import User, db
+from schemas import UserCreate, UserRead, UserUpdate
+from users import auth_backend, current_active_user, fastapi_users
+
+from httpx_oauth.clients.google import GoogleOAuth2
+
+google_oauth_client = GoogleOAuth2("CLIENT_ID", "CLIENT_SECRET")
+
 
 app = FastAPI()
 # DATABASE_URL = "mongodb+srv://leoproechel:xvxEke4g@cluster0.uzkj2bx.mongodb.net/?retryWrites=true&w=majority&appurl=AtlasApp"
@@ -27,8 +39,15 @@ async def startup_db_client():
     database = client.Cluster0
     articles = database["items-t2"]
     categories = database["categories-t5"]
+    users = client["users-t1"]
     await articles.create_index("url", unique=True)
     await categories.create_index("name", unique=True)
+    await init_beanie(
+        database=users,
+        document_models=[
+            User,  
+        ],
+    )
 
 # Add CORS middleware
 origins = [
@@ -52,6 +71,54 @@ def read_root():
 # def read_item(item_id: int, q: Union[str, None] = None):
 #   return {"item_id": item_id, "q": q}
 
+app.include_router(
+    fastapi_users.get_oauth_router(
+        google_oauth_client,
+        auth_backend,
+        "SECRET",
+        associate_by_email=True,
+        is_verified_by_default=True,
+    ),
+    prefix="/auth/google",
+    tags=["auth"],
+)
+
+app.include_router(
+    fastapi_users.get_oauth_associate_router(google_oauth_client, UserRead, "SECRET"),
+    prefix="/auth/associate/google",
+    tags=["auth"],
+)
+
+app.include_router(
+    fastapi_users.get_auth_router(auth_backend), prefix="/auth/jwt", tags=["auth"]
+)
+app.include_router(
+    fastapi_users.get_register_router(UserRead, UserCreate),
+    prefix="/auth",
+    tags=["auth"],
+)
+app.include_router(
+    fastapi_users.get_reset_password_router(),
+    prefix="/auth",
+    tags=["auth"],
+)
+app.include_router(
+    fastapi_users.get_verify_router(UserRead),
+    prefix="/auth",
+    tags=["auth"],
+)
+app.include_router(
+    fastapi_users.get_users_router(UserRead, UserUpdate),
+    prefix="/users",
+    tags=["users"],
+)
+
+
+@app.get("/authenticated-route")
+async def authenticated_route(user: User = Depends(current_active_user)):
+    return {"message": f"Hello {user.email}!"}
+
+
 class Article(BaseModel):
     url: str
     content: Union[str, None] = None
@@ -65,10 +132,10 @@ class Article(BaseModel):
     articleType: Union[str, None] = None
     prompts: Union[list[str], None] = None
     latLong: Union[list[float], None] = None
-    deaths: Union[int, None] = None
-    injured: Union[int, None] = None
-    missing: Union[int, None] = None
-    displaced: Union[int, None] = None
+    deaths: Union[int, str, None] = None
+    injured: Union[int, str, None] = None
+    missing: Union[int, str, None] = None
+    displaced: Union[int, str, None] = None
 
 @app.post("/articles/")
 async def create_item(item: Article):
@@ -173,6 +240,7 @@ async def delete_item(item_id: str):
 async def get_items_by_category(category: str, 
                                 dateStart: Optional[float] = Query(None), 
                                 dateEnd: Optional[float] = Query(None),
+                                limits: Optional[str] = Query(None),
                                 countries: Optional[str] = Query(None)):  # Changed to expect a string
     query = {}
 
@@ -201,6 +269,20 @@ async def get_items_by_category(category: str,
     print("hlhsd")
     # Convert MongoDB's ObjectId to string for each item
     for item in items:
+        print("l")
+        # deaths etc. are ints not numbers with decimals
+        try:
+            if item["deaths"] and item["deaths"] != None:
+                item["deaths"] = int(item["deaths"])
+            if item["injured"] and item["injured"] != None:
+                item["injured"] = int(item["injured"])
+            if item["missing"] and item["missing"] != None:
+                item["missing"] = int(item["missing"])
+            if item["displaced"] and item["displaced"] != None:
+                item["displaced"] = int(item["displaced"])
+        except:
+            print("error converting deaths etc.")
+
         # if combinees isn't a list
         if not isinstance(item["combinees"], list):
             item["combinees"] = []
@@ -211,11 +293,12 @@ async def get_items_by_category(category: str,
             print("==", item["latLong"])
             print("-----")
             item["_id"] = str(item["_id"])
-            print("item success", item)
+            print("item success", item["injured"])
         except:
             print("item failure", item)
 
     # print(items)
+    print("jo")
 
     return items
 
@@ -289,7 +372,7 @@ async def delete_category(category_id: str):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8888)
     startup_db_client()
 
 # uvicorn main:app --reload
