@@ -18,8 +18,7 @@ from users import auth_backend, current_active_user, fastapi_users
 
 from httpx_oauth.clients.google import GoogleOAuth2
 
-google_oauth_client = GoogleOAuth2("CLIENT_ID", "CLIENT_SECRET")
-
+google_oauth_client = GoogleOAuth2("1086477743275-k1l12em2uf16l21u4tcv604m1n8i865p.apps.googleusercontent.com", "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")
 
 app = FastAPI()
 # DATABASE_URL = "mongodb+srv://leoproechel:xvxEke4g@cluster0.uzkj2bx.mongodb.net/?retryWrites=true&w=majority&appurl=AtlasApp"
@@ -75,7 +74,7 @@ app.include_router(
     fastapi_users.get_oauth_router(
         google_oauth_client,
         auth_backend,
-        "SECRET",
+        "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",
         associate_by_email=True,
         is_verified_by_default=True,
     ),
