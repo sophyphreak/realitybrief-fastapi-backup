@@ -33,6 +33,9 @@ DATABASE_URL = "mongodb+srv://leoproechel:xvxEke4g@cluster0.uzkj2bx.mongodb.net/
 
 @app.on_event("startup")
 async def startup_db_client():
+    for route in app.routes:
+        print(route.path, route.methods)
+
     global client, database, articles, categories
     client = AsyncIOMotorClient(DATABASE_URL)
     database = client.Cluster0
