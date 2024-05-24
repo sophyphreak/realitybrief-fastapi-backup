@@ -2,7 +2,7 @@ from typing import Union, List, Optional
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, HTTPException, Depends, Query
 from pymongo.errors import DuplicateKeyError
-from pymongo import MongoClient
+# from pymongo import MongoClient
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, Field, validator
 from bson import ObjectId
@@ -55,7 +55,7 @@ async def startup_db_client():
 origins = [
   "*",
   "https://remarkable-pudding-6192c0.netlify.app/"
-#   "http://localhost:5173",  # Svelte's default development server address
+  "http://localhost:5173",  # Svelte's default development server address
 ]
 
 app.add_middleware(
@@ -172,6 +172,7 @@ async def get_articles(dateStart: Optional[float] = Query(None), dateEnd: Option
         # Convert MongoDB's ObjectId to string for each item
         for item in items:
             item["_id"] = str(item["_id"])
+            item["category_ids"] = [str(id) for id in item["category_ids"]]  # Convert each ObjectId in category_ids to string
 
         return items
 
@@ -262,17 +263,14 @@ async def get_items_by_category(category: str,
         print(f"country_list: {country_list}")
         query["countries"] = {"$in": country_list}
 
-    print("12345")
     items_cursor = articles.find(query).sort("published", -1)
-    print("ljh8ns")
     items = await items_cursor.to_list(length=1000)  # Adjust length as needed
-    print("lkhjkfuhs")
     if not items:
         raise HTTPException(status_code=404, detail="Items not found")
-    print("hlhsd")
     # Convert MongoDB's ObjectId to string for each item
     for item in items:
-        print("l")
+        item["category_ids"] = [str(id) for id in item["category_ids"]]  # Convert each ObjectId in category_ids to string
+        
         # deaths etc. are ints not numbers with decimals
         try:
             if item["deaths"] and item["deaths"] != None:
@@ -283,6 +281,7 @@ async def get_items_by_category(category: str,
                 item["missing"] = int(item["missing"])
             if item["displaced"] and item["displaced"] != None:
                 item["displaced"] = int(item["displaced"])
+            
         except:
             print("error converting deaths etc.")
 
