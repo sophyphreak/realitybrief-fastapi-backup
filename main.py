@@ -370,7 +370,7 @@ class Feed(BaseModel):
     _id: Optional[str] = None
     title: str
     description: str
-    countries: List[str]
+    countries: Optional[List[str]] = []
     categories: List[FeedCategory]
 
     class Config:
