@@ -12,7 +12,7 @@ from fastapi_users.db import BeanieUserDatabase, ObjectIDIDMixin
 
 from db import User, get_user_db
 
-SECRET = "SECRET"
+SECRET = "VERY SECRET PASSPHRASE"
 
 
 class UserManager(ObjectIDIDMixin, BaseUserManager[User, PydanticObjectId]):

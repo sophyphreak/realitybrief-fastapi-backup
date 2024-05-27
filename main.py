@@ -9,10 +9,12 @@ from bson import ObjectId
 from datetime import date
 from bson.objectid import ObjectId
 from beanie import Document, init_beanie
-from fastapi_users.db import BaseOAuthAccount
-# from fastapi_users.db import BeanieBaseUser, BeanieUserDatabase
-
-from db import User, db
+from fastapi_users.db import BaseOAuthAccount, BeanieBaseUser, BeanieUserDatabase
+from fastapi_users_db_beanie.access_token import (
+    BeanieAccessTokenDatabase,
+    BeanieBaseAccessToken,
+)
+from db import User, db, AccessToken
 from schemas import UserCreate, UserRead, UserUpdate
 from users import auth_backend, current_active_user, fastapi_users
 
@@ -21,33 +23,28 @@ from httpx_oauth.clients.google import GoogleOAuth2
 google_oauth_client = GoogleOAuth2("1086477743275-k1l12em2uf16l21u4tcv604m1n8i865p.apps.googleusercontent.com", "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")
 
 app = FastAPI()
-# DATABASE_URL = "mongodb+srv://leoproechel:xvxEke4g@cluster0.uzkj2bx.mongodb.net/?retryWrites=true&w=majority&appurl=AtlasApp"
 DATABASE_URL = "mongodb+srv://leoproechel:xvxEke4g@cluster0.uzkj2bx.mongodb.net/?ssl=true&tls=true"
-# mongodb+srv://username:password@cluster-url/database?ssl=true&tls=true
-# client = AsyncIOMotorClient(DATABASE_URL)
-# database = client.Cluster0
-# articles = database["items-t1"]
-# categories = database["categories-t4"]
-# articles.create_index("url", unique=True)
-# categories.create_index("name", unique=True)
+SECRET = "VERY SECRET PASSPHRASE"
 
 @app.on_event("startup")
 async def startup_db_client():
     for route in app.routes:
         print(route.path, route.methods)
 
-    global client, database, articles, categories
+    global client, database, articles, categories, customfeeds
     client = AsyncIOMotorClient(DATABASE_URL)
     database = client.Cluster0
     articles = database["items-t2"]
     categories = database["categories-t5"]
     users = client["users-t1"]
+    customfeeds = database["customfeeds-t1"]
     await articles.create_index("url", unique=True)
     await categories.create_index("name", unique=True)
     await init_beanie(
         database=users,
         document_models=[
             User,  
+            AccessToken
         ],
     )
 
@@ -78,7 +75,7 @@ app.include_router(
     fastapi_users.get_oauth_router(
         google_oauth_client,
         auth_backend,
-        "SECRET",
+        SECRET,
         associate_by_email=True,
         is_verified_by_default=True,
     ),
@@ -87,7 +84,7 @@ app.include_router(
 )
 
 app.include_router(
-    fastapi_users.get_oauth_associate_router(google_oauth_client, UserRead, "SECRET"),
+    fastapi_users.get_oauth_associate_router(google_oauth_client, UserRead, SECRET),
     prefix="/auth/associate/google",
     tags=["auth"],
 )
@@ -120,7 +117,6 @@ app.include_router(
 @app.get("/authenticated-route")
 async def authenticated_route(user: User = Depends(current_active_user)):
     return {"message": f"Hello {user.email}!"}
-
 
 class Article(BaseModel):
     url: str
@@ -289,18 +285,11 @@ async def get_items_by_category(category: str,
         if not isinstance(item["combinees"], list):
             item["combinees"] = []
         try:
-            print("lkjhsd", item["url"])
             if item["latLong"][0] == None:
                 item["latLong"] = [0, 0]
-            print("==", item["latLong"])
-            print("-----")
             item["_id"] = str(item["_id"])
-            print("item success", item["injured"])
         except:
             print("item failure", item)
-
-    # print(items)
-    print("jo")
 
     return items
 
@@ -309,7 +298,7 @@ async def get_items_by_category(category: str,
 
 class CategoryBase(BaseModel):
     name: str
-    description: Optional[str]
+    # description: Optional[str]
 
 class CategoryInDB(CategoryBase):
     id: Union[ObjectId, str] = Field(..., alias="_id")
@@ -368,6 +357,85 @@ async def delete_category(category_id: str):
 
 # ==============CATEGORIES ENDS================
 
+# ==============FEEDS================
+class FeedCategory(BaseModel):
+    name: str
+    category_id: str
+    min_deaths: Optional[int] = None
+    min_injured: Optional[int] = None
+    min_missing: Optional[int] = None
+    min_displaced: Optional[int] = None
+
+class Feed(BaseModel):
+    _id: Optional[str] = None
+    title: str
+    description: str
+    countries: List[str]
+    categories: List[FeedCategory]
+
+    class Config:
+        allow_population_by_field_name = True
+
+class FeedInDB(Feed):
+    id: Union[ObjectId, str] = Field(..., alias="_id")
+
+    class Config:
+        arbitrary_types_allowed = True
+        json_encoders = {ObjectId: str}
+
+    @validator("id", pre=True, always=True)
+    def convert_objectid_to_str(cls, value):
+        return str(value)
+
+def convert_objectid(feed):
+    feed['_id'] = str(feed['_id'])
+    return feed
+
+@app.post("/feeds/", response_model=FeedInDB)
+async def create_feed(feed: Feed):
+    feed_dict = feed.dict()
+    try:
+        new_feed = await customfeeds.insert_one(feed_dict)
+        created_feed = await customfeeds.find_one({"_id": new_feed.inserted_id})
+        return FeedInDB(**convert_objectid(created_feed))
+    except DuplicateKeyError:
+        raise HTTPException(status_code=400, detail="Feed with this title already exists.")
+    
+@app.get("/feeds/", response_model=List[FeedInDB])
+async def get_all_feeds():
+    feed_list = []
+    async for feed in customfeeds.find():
+        feed['_id'] = str(feed['_id'])  # convert ObjectId to string
+        feed_list.append(FeedInDB(**feed))
+    return feed_list
+
+@app.get("/feeds/{feed_id}", response_model=Feed)
+async def get_feed_by_id(feed_id: str):
+    feed = await customfeeds.find_one({"_id": ObjectId(feed_id)})
+    if not feed:
+        raise HTTPException(status_code=404, detail="Feed not found")
+    return Feed(**feed)
+
+@app.put("/feeds/{feed_id}", response_model=Feed)
+async def update_feed(feed_id: str, updated_feed: Feed):
+    feed = await customfeeds.find_one({"_id": ObjectId(feed_id)})
+    if not feed:
+        raise HTTPException(status_code=404, detail="Feed not found")
+
+    feed_data = updated_feed.dict()
+    await customfeeds.replace_one({"_id": ObjectId(feed_id)}, feed_data)
+    feed_data["_id"] = ObjectId(feed_id)
+    return Feed(**feed_data)
+
+@app.delete("/feeds/{feed_id}", response_model=Feed)
+async def delete_feed(feed_id: str):
+    feed = await customfeeds.find_one({"_id": ObjectId(feed_id)})
+    if not feed:
+        raise HTTPException(status_code=404, detail="Feed not found")
+
+    await customfeeds.delete_one({"_id": ObjectId(feed_id)})
+    return Feed(**feed)
+# ==============FEEDS ENDS================
 
 
 # Add CORS and other configurations as needed.
