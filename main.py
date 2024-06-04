@@ -39,8 +39,8 @@ async def startup_db_client():
     users = client["users-t1"]
     customfeeds = database["customfeeds-t1"]
     await articles.create_index("url", unique=True)
+    await articles.create_index([("published", 1), ("countries", 1)])
     await categories.create_index("name", unique=True)
-    await categories.create_index("published", unique=True)
     await init_beanie(
         database=users,
         document_models=[
