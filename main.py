@@ -40,6 +40,7 @@ async def startup_db_client():
     customfeeds = database["customfeeds-t1"]
     await articles.create_index("url", unique=True)
     await categories.create_index("name", unique=True)
+    await categories.create_index("published", unique=True)
     await init_beanie(
         database=users,
         document_models=[
@@ -298,7 +299,7 @@ async def get_items_by_category(category: str,
 
 class CategoryBase(BaseModel):
     name: str
-    # description: Optional[str]
+    description: Optional[str] = None
 
 class CategoryInDB(CategoryBase):
     id: Union[ObjectId, str] = Field(..., alias="_id")
